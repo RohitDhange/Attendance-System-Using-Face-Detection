@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  fullName     String
+  email        String        @unique
+  passwordHash String
+  studentId    String        @unique
+  department   String
+  className    String
+  role         String        @default("USER") // "ADMIN" | "USER"
+  isActive     Boolean       @default(true)
+  avatar       String?
+  faceProfile  FaceProfile?
+  attendances  Attendance[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([role])
+  @@index([department])
+  @@index([studentId])
+}
+
+model FaceProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedEmbedding String   // AES-256 encrypted 128-float face descriptor JSON
+  facePreview        String?  // Optional thumbnail snapshot captured during registration
+  registeredAt       DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Attendance {
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendanceDate     String   // Format: YYYY-MM-DD
+  checkInTime        DateTime @default(now())
+  status             String   @default("PRESENT") // "PRESENT" | "LATE" | "ABSENT"
+  verificationMethod String   @default("FACE_RECOGNITION") // "FACE_RECOGNITION" | "MANUAL_ADMIN"
+  confidence         Float?   // Recognition confidence score percentage (e.g., 94.5%)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([userId, attendanceDate], name: "user_daily_attendance")
+  @@index([attendanceDate])
+  @@index([status])
+  @@index([userId])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String
+  performedBy String
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  details     String?
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}
